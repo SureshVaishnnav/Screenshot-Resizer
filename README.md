@@ -87,24 +87,19 @@ php -S localhost:8000
 
 ## 🌐 Online Deployment
 
-The tool is deployed and free to use at:
-👉 **[Screenshot Resizer](https://sureshvaishnnav.github.io/Screenshot-Resizer/)**
-
-### Deploy Your Own (Free Options)
-
-#### GitHub Pages (Recommended)
+### GitHub Pages (Free & Easy)
 1. Fork this repo
 2. Go to Settings → Pages
 3. Select `main` branch as source
 4. Your app will be at: `https://YOUR-USERNAME.github.io/Screenshot-Resizer/`
 
-#### Netlify
+### Netlify (Recommended)
 1. Go to [netlify.com](https://netlify.com)
 2. Connect GitHub repo
 3. Auto-deploys on push
 4. Get a live URL instantly
 
-#### Vercel
+### Vercel
 1. Go to [vercel.com](https://vercel.com)
 2. Import GitHub repo
 3. One-click deploy
