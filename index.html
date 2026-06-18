@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App Store Screenshot Resizer</title>
+<style>
+  :root {
+    --bg: #FAF8F5;
+    --surface: #FFFFFF;
+    --border: #E8E4DF;
+    --text: #1A1A1A;
+    --text-secondary: #6B6560;
+    --accent: #E8553D;
+    --accent-hover: #D44A33;
+    --apple: #0071E3;
+    --google: #34A853;
+    --tag-apple: #EBF3FD;
+    --tag-google: #E8F5EB;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+  header { margin-bottom: 36px; }
+  header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
+  header p { font-size: 15px; color: var(--text-secondary); line-height: 1.5; }
+
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius); background: var(--surface);
+    padding: 48px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative;
+  }
+  .drop-zone.drag-over { border-color: var(--accent); background: #FEF6F4; }
+  .drop-zone-icon { width: 48px; height: 48px; margin: 0 auto 16px; border-radius: 12px; background: #F3F0ED; display: flex; align-items: center; justify-content: center; }
+  .drop-zone-icon svg { width: 24px; height: 24px; color: var(--text-secondary); }
+  .drop-zone h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .drop-zone p { font-size: 13px; color: var(--text-secondary); }
+  .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+  .thumbnails { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .thumb { position: relative; width: 72px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb-remove { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: none; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+  .thumb:hover .thumb-remove { opacity: 1; }
+
+  .settings { margin-top: 32px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; box-shadow: var(--shadow); }
+  .settings-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .settings-header h2 { font-size: 17px; font-weight: 600; }
+
+  .fit-mode { display: flex; gap: 4px; background: #F3F0ED; border-radius: 8px; padding: 3px; }
+  .fit-mode button { padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; background: transparent; color: var(--text-secondary); transition: all 0.15s; font-family: inherit; }
+  .fit-mode button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  .store-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .store-tab { padding: 7px 16px; border: 1px solid var(--border); border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; background: var(--surface); color: var(--text-secondary); transition: all 0.15s; font-family: inherit; }
+  .store-tab.active-apple { background: var(--tag-apple); border-color: var(--apple); color: var(--apple); }
+  .store-tab.active-google { background: var(--tag-google); border-color: var(--google); color: var(--google); }
+
+  .sizes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+  .size-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .size-option:hover { border-color: #ccc; }
+  .size-option.selected { border-color: var(--accent); background: #FEF6F4; }
+  .size-option input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+  .size-label { flex: 1; min-width: 0; }
+  .size-label .name { font-size: 13px; font-weight: 500; display: block; }
+  .size-label .dims { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+  .store-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; letter-spacing: 0.3px; text-transform: uppercase; }
+  .badge-apple { background: var(--tag-apple); color: var(--apple); }
+  .badge-google { background: var(--tag-google); color: var(--google); }
+
+  .custom-row { margin-top: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .custom-row label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+  .custom-row input[type="number"] { width: 90px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; outline: none; }
+  .custom-row input[type="number"]:focus { border-color: var(--accent); }
+  .custom-row .x-sep { font-size: 13px; color: var(--text-secondary); }
+  .btn-add-custom { padding: 7px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; background: var(--surface); color: var(--text); font-family: inherit; }
+  .btn-add-custom:hover { border-color: #ccc; }
+
+  .actions { margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn-primary { padding: 12px 28px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .progress-bar { margin-top: 16px; height: 4px; background: #F3F0ED; border-radius: 2px; overflow: hidden; display: none; }
+  .progress-bar.active { display: block; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; width: 0%; }
+  .status-text { margin-top: 8px; font-size: 13px; color: var(--text-secondary); min-height: 20px; }
+
+  /* Results */
+  .results { margin-top: 36px; }
+  .results h2 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .results .save-hint { font-size: 13px; color: var(--accent); margin-bottom: 20px; font-weight: 500; }
+
+  .result-group { margin-bottom: 32px; }
+  .result-group-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-secondary); }
+
+  .result-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow);
+  }
+  .result-item-header {
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border); background: #FDFCFB;
+  }
+  .result-item-header .name { font-size: 13px; font-weight: 600; }
+  .result-item-header .dims { font-size: 12px; color: var(--text-secondary); }
+  .result-item-body {
+    padding: 16px; display: flex; justify-content: center; align-items: center;
+    background: #F3F0ED; min-height: 120px; max-height: 400px; overflow: auto;
+  }
+  .result-item-body img {
+    max-width: 100%; max-height: 380px; object-fit: contain;
+    border: 1px solid var(--border); border-radius: 4px; background: #fff;
+  }
+
+  /* Lightbox */
+  .lightbox {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    z-index: 1000; justify-content: center; align-items: center; flex-direction: column; padding: 24px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox-close {
+    position: absolute; top: 16px; right: 20px; width: 40px; height: 40px;
+    border-radius: 50%; background: rgba(255,255,255,0.15); border: none;
+    color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .lightbox-close:hover { background: rgba(255,255,255,0.3); }
+  .lightbox-hint {
+    color: rgba(255,255,255,0.8); font-size: 14px; margin-bottom: 16px; text-align: center;
+    background: rgba(255,255,255,0.1); padding: 8px 20px; border-radius: 8px;
+  }
+  .lightbox-hint strong { color: #fff; }
+  .lightbox img {
+    max-width: 90vw; max-height: 75vh; object-fit: contain;
+    border-radius: 4px; background: #fff;
+  }
+  .lightbox-name {
+    color: rgba(255,255,255,0.7); font-size: 13px; margin-top: 12px;
+  }
+
+  @media (max-width: 600px) {
+    .app { padding: 24px 16px 80px; }
+    header h1 { font-size: 22px; }
+    .sizes-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Screenshot Resizer</h1>
+    <p>Drop your screenshots, pick target sizes, and save resized images ready for submission.</p>
+  </header>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" multiple accept="image/*">
+    <div class="drop-zone-icon">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    </div>
+    <h3>Drop screenshots here</h3>
+    <p>or click to browse &middot; PNG, JPG, WebP</p>
+  </div>
+
+  <div class="thumbnails" id="thumbnails"></div>
+
+  <div class="settings" id="settingsPanel" style="display:none;">
+    <div class="settings-header">
+      <h2>Target Sizes</h2>
+      <div class="fit-mode">
+        <button class="active" data-mode="fit" title="Fit inside bounds, add padding if needed">Fit</button>
+        <button data-mode="fill" title="Fill the frame, crop edges">Fill</button>
+        <button data-mode="stretch" title="Stretch to exact dimensions">Stretch</button>
+      </div>
+    </div>
+
+    <div class="store-tabs">
+      <button class="store-tab active-apple" data-store="apple" id="tabApple">Apple App Store</button>
+      <button class="store-tab active-google" data-store="google" id="tabGoogle">Google Play</button>
+    </div>
+
+    <div class="sizes-grid" id="sizesGrid"></div>
+
+    <div class="custom-row">
+      <label>Custom:</label>
+      <input type="number" id="customW" placeholder="Width" min="1">
+      <span class="x-sep">&times;</span>
+      <input type="number" id="customH" placeholder="Height" min="1">
+      <button class="btn-add-custom" id="btnAddCustom">Add</button>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" id="btnResize" disabled>Resize &amp; Preview</button>
+    </div>
+
+    <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="status-text" id="statusText"></div>
+  </div>
+
+  <div class="results" id="results" style="display:none;">
+    <h2>Resized Screenshots</h2>
+    <p class="save-hint">Click any image, then <strong>right-click → Save Image As</strong> to save it at full resolution.</p>
+    <div id="resultsList"></div>
+  </div>
+</div>
+
+<!-- Lightbox for full-size save -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">&times;</button>
+  <div class="lightbox-hint"><strong>Right-click</strong> the image below → <strong>Save Image As…</strong></div>
+  <img id="lightboxImg" src="" alt="">
+  <div class="lightbox-name" id="lightboxName"></div>
+</div>
+
+<script>
+const SIZES = [
+  { id: 'iphone67',  name: 'iPhone 6.7"',     w: 1290, h: 2796, store: 'apple' },
+  { id: 'iphone65',  name: 'iPhone 6.5"',     w: 1284, h: 2778, store: 'apple' },
+  { id: 'iphone61',  name: 'iPhone 6.1"',     w: 1179, h: 2556, store: 'apple' },
+  { id: 'iphone55',  name: 'iPhone 5.5"',     w: 1242, h: 2208, store: 'apple' },
+  { id: 'ipad129',   name: 'iPad Pro 12.9"',  w: 2048, h: 2732, store: 'apple' },
+  { id: 'ipad11',    name: 'iPad Pro 11"',    w: 1668, h: 2388, store: 'apple' },
+  { id: 'gp_phone',  name: 'Phone',           w: 1080, h: 1920, store: 'google' },
+  { id: 'gp_tab7',   name: '7" Tablet',       w: 1200, h: 1920, store: 'google' },
+  { id: 'gp_tab10',  name: '10" Tablet',      w: 1600, h: 2560, store: 'google' },
+];
+
+let images = [];
+let selectedSizes = new Set();
+let fitMode = 'fit';
+let resizedResults = [];
+let customCounter = 0;
+let allSizes = [...SIZES];
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const thumbnails = document.getElementById('thumbnails');
+const settingsPanel = document.getElementById('settingsPanel');
+const sizesGrid = document.getElementById('sizesGrid');
+const btnResize = document.getElementById('btnResize');
+const progressBar = document.getElementById('progressBar');
+const progressFill = document.getElementById('progressFill');
+const statusText = document.getElementById('statusText');
+const results = document.getElementById('results');
+const resultsList = document.getElementById('resultsList');
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+const lightboxName = document.getElementById('lightboxName');
+
+// Drop zone
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+function handleFiles(files) {
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        images.push({ name: f.name, img, dataUrl: ev.target.result });
+        renderThumbnails();
+        settingsPanel.style.display = '';
+        updateButtons();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  }
+}
+
+function renderThumbnails() {
+  thumbnails.innerHTML = '';
+  images.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = `<img src="${item.dataUrl}" alt="${item.name}"><button class="thumb-remove" data-i="${i}">&times;</button>`;
+    thumbnails.appendChild(div);
+  });
+  thumbnails.querySelectorAll('.thumb-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      images.splice(+btn.dataset.i, 1);
+      renderThumbnails();
+      updateButtons();
+      if (!images.length) settingsPanel.style.display = 'none';
+    });
+  });
+}
+
+function renderSizes() {
+  sizesGrid.innerHTML = '';
+  const appleVisible = document.getElementById('tabApple').classList.contains('active-apple');
+  const googleVisible = document.getElementById('tabGoogle').classList.contains('active-google');
+  allSizes.forEach(s => {
+    if (s.store === 'apple' && !appleVisible) return;
+    if (s.store === 'google' && !googleVisible) return;
+    const div = document.createElement('div');
+    div.className = 'size-option' + (selectedSizes.has(s.id) ? ' selected' : '');
+    const badgeClass = s.store === 'apple' ? 'badge-apple' : s.store === 'google' ? 'badge-google' : '';
+    const badgeText = s.store === 'apple' ? 'Apple' : s.store === 'google' ? 'Google' : 'Custom';
+    div.innerHTML = `
+      <input type="checkbox" ${selectedSizes.has(s.id) ? 'checked' : ''}>
+      <div class="size-label"><span class="name">${s.name}</span><span class="dims">${s.w} &times; ${s.h} px</span></div>
+      <span class="store-badge ${badgeClass}">${badgeText}</span>`;
+    div.addEventListener('click', () => {
+      if (selectedSizes.has(s.id)) selectedSizes.delete(s.id); else selectedSizes.add(s.id);
+      renderSizes(); updateButtons();
+    });
+    sizesGrid.appendChild(div);
+  });
+}
+
+document.querySelectorAll('.store-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    tab.classList.toggle(tab.dataset.store === 'apple' ? 'active-apple' : 'active-google');
+    renderSizes();
+  });
+});
+
+document.querySelectorAll('.fit-mode button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fit-mode button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    fitMode = btn.dataset.mode;
+  });
+});
+
+document.getElementById('btnAddCustom').addEventListener('click', () => {
+  const w = parseInt(document.getElementById('customW').value);
+  const h = parseInt(document.getElementById('customH').value);
+  if (!w || !h || w < 1 || h < 1) return;
+  customCounter++;
+  const id = 'custom_' + customCounter;
+  allSizes.push({ id, name: `Custom ${w}×${h}`, w, h, store: 'custom' });
+  selectedSizes.add(id);
+  document.getElementById('customW').value = '';
+  document.getElementById('customH').value = '';
+  renderSizes(); updateButtons();
+});
+
+function updateButtons() {
+  btnResize.disabled = !(images.length > 0 && selectedSizes.size > 0);
+}
+
+// Resize
+btnResize.addEventListener('click', async () => {
+  resizedResults = [];
+  resultsList.innerHTML = '';
+  results.style.display = '';
+  progressBar.classList.add('active');
+  progressFill.style.width = '0%';
+
+  const selected = allSizes.filter(s => selectedSizes.has(s.id));
+  const total = images.length * selected.length;
+  let done = 0;
+
+  for (const img of images) {
+    for (const size of selected) {
+      statusText.textContent = `Resizing ${img.name} → ${size.w}×${size.h}...`;
+      const dataUrl = resizeImage(img.img, size.w, size.h, fitMode);
+      const baseName = img.name.replace(/\.[^.]+$/, '');
+      resizedResults.push({
+        name: `${baseName}_${size.w}x${size.h}.png`,
+        url: dataUrl,
+        w: size.w, h: size.h,
+        sizeName: size.name,
+        originalName: img.name
+      });
+      done++;
+      progressFill.style.width = `${(done / total) * 100}%`;
+      await new Promise(r => setTimeout(r, 10));
+    }
+  }
+
+  statusText.textContent = `Done — ${resizedResults.length} images resized. Click any image to save it.`;
+  setTimeout(() => progressBar.classList.remove('active'), 600);
+  renderResults();
+});
+
+function resizeImage(srcImg, targetW, targetH, mode) {
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, targetW, targetH);
+  const srcW = srcImg.naturalWidth, srcH = srcImg.naturalHeight;
+  let dx, dy, dw, dh, sx, sy, sw, sh;
+  if (mode === 'stretch') {
+    dx = 0; dy = 0; dw = targetW; dh = targetH; sx = 0; sy = 0; sw = srcW; sh = srcH;
+  } else if (mode === 'fill') {
+    const scale = Math.max(targetW / srcW, targetH / srcH);
+    sw = targetW / scale; sh = targetH / scale;
+    sx = (srcW - sw) / 2; sy = (srcH - sh) / 2;
+    dx = 0; dy = 0; dw = targetW; dh = targetH;
+  } else {
+    const scale = Math.min(targetW / srcW, targetH / srcH);
+    dw = srcW * scale; dh = srcH * scale;
+    dx = (targetW - dw) / 2; dy = (targetH - dh) / 2;
+    sx = 0; sy = 0; sw = srcW; sh = srcH;
+  }
+  ctx.drawImage(srcImg, sx, sy, sw, sh, dx, dy, dw, dh);
+  return canvas.toDataURL('image/png');
+}
+
+function renderResults() {
+  resultsList.innerHTML = '';
+  const grouped = {};
+  resizedResults.forEach(r => {
+    if (!grouped[r.originalName]) grouped[r.originalName] = [];
+    grouped[r.originalName].push(r);
+  });
+  for (const [origName, items] of Object.entries(grouped)) {
+    const group = document.createElement('div');
+    group.className = 'result-group';
+    group.innerHTML = `<div class="result-group-title">${origName}</div>`;
+    items.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'result-item';
+      item.innerHTML = `
+        <div class="result-item-header">
+          <span class="name">${r.sizeName} &mdash; ${r.name}</span>
+          <span class="dims">${r.w} &times; ${r.h} px</span>
+        </div>
+        <div class="result-item-body"><img src="${r.url}" alt="${r.name}"></div>`;
+      item.querySelector('.result-item-body img').addEventListener('click', () => openLightbox(r.url, r.name));
+      item.style.cursor = 'pointer';
+      group.appendChild(item);
+    });
+    resultsList.appendChild(group);
+  }
+}
+
+// Lightbox
+function openLightbox(url, name) {
+  lightboxImg.src = url;
+  lightboxName.textContent = name;
+  lightbox.classList.add('open');
+}
+
+document.getElementById('lightboxClose').addEventListener('click', () => lightbox.classList.remove('open'));
+lightbox.addEventListener('click', e => { if (e.target === lightbox) lightbox.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') lightbox.classList.remove('open'); });
+
+renderSizes();
+</script>
+</body>
+</html>
