@@ -1,3 +1,4 @@
+<img width="1183" height="900" alt="Screenshot 2026-06-18 at 10 47 35 AM" src="https://github.com/user-attachments/assets/070c485d-2cc2-439a-bad9-fae1ec4746c9" />
 # 📱 Screenshot Resizer
 
 A fast, free, browser-based tool to resize and optimize screenshots for **iOS App Store** and **Google Play Store**. No internet required after loading, 100% client-side processing, zero ads.
